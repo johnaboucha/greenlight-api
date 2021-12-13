@@ -2,8 +2,10 @@ package data
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
+	"github.com/lib/pq"
 	"greenlight.johnboucha.com/internal/validator"
 )
 
@@ -22,19 +24,100 @@ type Movie struct {
 }
 
 func (m MovieModel) Insert(movie *Movie) error {
-	return nil
+
+	query := `
+		INSERT INTO movies (title, year, runtime, genres)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, created_at, version`
+
+	args := []interface{}{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
+
+	return m.DB.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
 func (m MovieModel) Get(id int64) (*Movie, error) {
-	return nil, nil
+
+	// Movie ID should not be less than 1
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+	query := `
+		SELECT id, created_at, title, year, runtime, genres, version
+		FROM movies
+		WHERE id = $1`
+
+	var movie Movie
+
+	err := m.DB.QueryRow(query, id).Scan(
+		&movie.ID,
+		&movie.CreatedAt,
+		&movie.Title,
+		&movie.Year,
+		&movie.Runtime,
+		pq.Array(&movie.Genres),
+		&movie.Version,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &movie, nil
 }
 
 func (m MovieModel) Update(movie *Movie) error {
-	return nil
+	query := `
+		UPDATE movies
+		SET title = $1, year = $2, runtime = $3, genres = $4, version = version + 1
+		WHERE id = $5
+		RETURNING version`
+
+	args := []interface{}{
+		movie.Title,
+		movie.Year,
+		movie.Runtime,
+		pq.Array(movie.Genres),
+		movie.ID,
+	}
+
+	return m.DB.QueryRow(query, args...).Scan(&movie.Version)
 }
 
 func (m MovieModel) Delete(id int64) error {
+
+	// movie ID cannot be less than 1
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+
+	query := `
+		DELETE FROM movies
+		WHERE id = $1`
+
+	// Execute the query by ID
+	result, err := m.DB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	// rowsAffeccted should be 1, else return error
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
 	return nil
+
 }
 
 func ValidateMovie(v *validator.Validator, movie *Movie) {
