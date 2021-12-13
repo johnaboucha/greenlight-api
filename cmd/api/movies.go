@@ -86,7 +86,7 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-// handler for "PUT /v1/movies/:id"
+// handler for "PATCH /v1/movies/:id"
 func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
 	// read movie ID from URL
 	id, err := app.readIDParam(r)
@@ -95,7 +95,7 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// get existing movei from database, or error out
+	// get existing movie from database, or error out
 	movie, err := app.models.Movies.Get(id)
 	if err != nil {
 		switch {
@@ -109,10 +109,10 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 
 	// create generic struct to hold input data
 	var input struct {
-		Title   string       `json:"title"`
-		Year    int32        `json:"year"`
-		Runtime data.Runtime `json:"runtime"`
-		Genres  []string     `json:"genres"`
+		Title   *string       `json:"title"`
+		Year    *int32        `json:"year"`
+		Runtime *data.Runtime `json:"runtime"`
+		Genres  []string      `json:"genres"`
 	}
 
 	// read request body
@@ -122,11 +122,19 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// update our movie values
-	movie.Title = input.Title
-	movie.Year = input.Year
-	movie.Runtime = input.Runtime
-	movie.Genres = input.Genres
+	// update our movie values where input values are included in request
+	if input.Title != nil {
+		movie.Title = *input.Title
+	}
+	if input.Year != nil {
+		movie.Year = *input.Year
+	}
+	if input.Runtime != nil {
+		movie.Runtime = *input.Runtime
+	}
+	if input.Genres != nil {
+		movie.Genres = input.Genres
+	}
 
 	// check values before pushing to database
 	v := validator.New()
@@ -139,7 +147,12 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 	// update record
 	err = app.models.Movies.Update(movie)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 

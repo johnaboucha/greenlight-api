@@ -6,7 +6,8 @@ import (
 )
 
 var (
-	ErrRecordNotFound = errors.New("record not found")
+	ErrRecordNotFound = errors.New("record not found") // not found errors
+	ErrEditConflict   = errors.New("edit conflict")    // used when race conditions occur
 )
 
 // Models struct wraps our models
