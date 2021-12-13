@@ -1,10 +1,15 @@
 package data
 
 import (
+	"database/sql"
 	"time"
 
 	"greenlight.johnboucha.com/internal/validator"
 )
+
+type MovieModel struct {
+	DB *sql.DB
+}
 
 type Movie struct {
 	ID        int64     `json:"id"`
@@ -14,6 +19,22 @@ type Movie struct {
 	Runtime   Runtime   `json:"runtime,omitempty"` // Runtime type found in internal/data/runtime.go
 	Genres    []string  `json:"genres,omitempty"`
 	Version   int32     `json:"version"`
+}
+
+func (m MovieModel) Insert(movie *Movie) error {
+	return nil
+}
+
+func (m MovieModel) Get(id int64) (*Movie, error) {
+	return nil, nil
+}
+
+func (m MovieModel) Update(movie *Movie) error {
+	return nil
+}
+
+func (m MovieModel) Delete(id int64) error {
+	return nil
 }
 
 func ValidateMovie(v *validator.Validator, movie *Movie) {
