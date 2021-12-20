@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+
+	"greenlight.johnboucha.com/internal/validator"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -114,4 +117,48 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst int
 	}
 
 	return nil
+}
+
+// reads the key values from the query string, or returns default value if key not provided
+func (app *application) readString(qs url.Values, key string, defaultValue string) string {
+
+	// 's' will be "" if key is not present
+	s := qs.Get(key)
+
+	if s == "" {
+		return defaultValue
+	}
+
+	return s
+}
+
+// reads a string from query string and splits it into a slice
+func (app *application) readCSV(qs url.Values, key string, defaultValue []string) []string {
+
+	// 'csv' will be "" if key is not present
+	csv := qs.Get(key)
+
+	if csv == "" {
+		return defaultValue
+	}
+
+	return strings.Split(csv, ",")
+}
+
+func (app *application) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+
+	// 's' will be "" if key is not present
+	s := qs.Get(key)
+
+	if s == "" {
+		return defaultValue
+	}
+
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		v.AddError(key, "must be an integer value")
+		return defaultValue
+	}
+
+	return i
 }
